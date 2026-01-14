@@ -75,7 +75,7 @@ You should see `qwen/qwen3-vl-8b` in the list of installed models.
 Navigate to the project directory and install Node.js dependencies:
 
 ```bash
-cd recipe-gen-claude
+cd recipe-generator
 npm install
 ```
 
@@ -181,7 +181,7 @@ Access metrics at `http://localhost:3000/metrics`:
 ## Project Structure
 
 ```
-recipe-gen-claude/
+recipe-generator/
 ├── server.js           # Express server with API proxy and metrics
 ├── index.html          # Frontend application
 ├── package.json        # Node.js dependencies
