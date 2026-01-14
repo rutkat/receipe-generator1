@@ -2,9 +2,9 @@
 
 An AI-powered recipe generator that uses computer vision to identify food ingredients from images and generate creative recipe suggestions. Built with Node.js, Express, and Ollama's open-source Qwen3-VL-8B multimodal AI model.
 
-![Recipe Generator Screenshot](screenshot1.heic)
-![Recipe Generator Screenshot](screenshot2.heic)
-![Recipe Generator Screenshot](screenshot3.heic)
+![Recipe Generator Screenshot](screenshot1.jpg)
+![Recipe Generator Screenshot](screenshot2.jpg)
+![Recipe Generator Screenshot](screenshot3.jpg)
 
 
 ## Features
