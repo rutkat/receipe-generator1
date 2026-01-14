@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Generator - Image Upload</title>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Recipe Generator</h1>
+        <p class="subtitle">Upload an image of food ingredients to get recipe ideas</p>
+        <p class="subtitle" style="font-size: 12px; color: #888; margin-top: -15px; margin-bottom: 25px;">
+            <strong>Technical Overview:</strong> Powered by Ollama's open-source Qwen3-VL-8B multimodal AI model running locally. Recipe websites are among the most visited destinations on the internet, with millions of daily users seeking cooking inspiration. Unlike commercial recipe platforms that monetize through aggressive advertising, data tracking, and subscription walls, this solution provides a completely ad-free experience while maintaining full data privacy on your local machine.
+        </p>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📸</div>
+            <div class="upload-text">Click to upload or drag and drop</div>
+            <div class="upload-hint">Supports JPG, PNG, GIF, WebP</div>
+        </div>
+
+        <input type="file" id="fileInput" accept="image/*">
+
+        <div class="preview-container" id="previewContainer">
+            <img id="previewImage" class="preview-image" alt="Preview">
+            <div class="button-group">
+                <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                <button class="btn btn-primary" id="submitBtn">Generate Recipe</button>
+            </div>
+        </div>
+
+        <div class="test-section" style="margin-top: 30px; padding-top: 30px; border-top: 1px solid #e0e0e0;">
+            <button class="btn btn-primary" id="testBtn" style="width: 100%;">Generate Random Recipe</button>
+            <button class="btn btn-secondary" id="clearCacheBtn" style="width: 100%; margin-top: 10px;">Clear Recipe Cache</button>
+        </div>
+
+        <div class="response-container" id="responseContainer">
+            <div class="response-title">Chef Bot Status:</div>
+            <div class="response-content" id="responseContent"></div>
+        </div>
+
+        <div class="recipe-dropdown-container" id="recipeDropdownContainer" style="display: none; margin-top: 30px; padding: 20px; background: #f0f8ff; border-radius: 12px;">
+            <div style="font-weight: 600; color: #333; margin-bottom: 10px; font-size: 18px;">Select a Recipe:</div>
+            <select id="recipeSelect" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; margin-bottom: 15px; background: white; cursor: pointer;">
+                <option value="">Choose a recipe...</option>
+            </select>
+            <button class="btn btn-primary" id="getRecipeBtn" style="width: 100%;" disabled>Get Complete Recipe</button>
+        </div>
+
+        <div class="complete-recipe-container" id="completeRecipeContainer" style="display: none; margin-top: 30px; padding: 25px; background: #fff9e6; border-radius: 12px; max-height: 500px; overflow-y: auto; box-shadow: none;">
+            <div class="response-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Complete Recipe:</span>
+                <button id="closeRecipeBtn" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">×</button>
+            </div>
+            <div class="response-content" id="completeRecipeContent" style="margin-top: 15px; white-space: pre-wrap;"></div>
+        </div>
+    </div>
+
+    <script src="scripts/main.js"></script>
+</body>
+</html>
