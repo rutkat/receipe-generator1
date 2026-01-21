@@ -3,21 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recipe Generator - Image Upload</title>
+    <title>Sloppy Chef</title>
     <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
     <div class="container">
-        <h1>Recipe Generator</h1>
+        <h1>Sloppy Chef Recipe Generator</h1>
         <p class="subtitle">Upload an image of food ingredients to get recipe ideas</p>
         <p class="subtitle" style="font-size: 12px; color: #888; margin-top: -15px; margin-bottom: 25px;">
-            <strong>Technical Overview:</strong> Powered by Ollama's open-source Qwen3-VL-8B multimodal AI model running locally. Recipe websites are among the most visited destinations on the internet, with millions of daily users seeking cooking inspiration. Unlike commercial recipe platforms that monetize through aggressive advertising, data tracking, and subscription walls, this solution provides a completely ad-free experience while maintaining full data privacy on your local machine.
+            <strong>Technical Overview:</strong> Powered by a leading multimodal AI model running locally. Recipe websites are among the most visited destinations on the internet, with millions of daily users seeking cooking inspiration. Unlike commercial recipe platforms that monetize through aggressive advertising, data tracking, and subscription walls, this solution provides a completely ad-free experience while maintaining full data privacy on your local machine.
         </p>
 
-        <div class="upload-area" id="uploadArea">
+        <div class="preferences-section">
+            <div class="preference-item">
+                <p>Set Your Preferences before uploading image.</p>
+                <label for="dietRestriction">Diet Restrictions:</label>
+                <select id="dietRestriction" class="preference-dropdown">
+                    <option value="none">None</option>
+                    <option value="vegetarian">Vegetarian</option>
+                    <option value="vegan">Vegan</option>
+                    <option value="low-carbohydrate">Low-carbohydrate</option>
+                </select>
+            </div>
+            <div class="preference-item">
+                <label for="cuisine">Cuisine:</label>
+                <select id="cuisine" class="preference-dropdown">
+                    <option value="any">Any</option>
+                    <option value="american">American</option>
+                    <option value="italian">Italian</option>
+                    <option value="mexican">Mexican</option>
+                    <option value="mediterranean">Mediterranean</option>
+                    <option value="asian">Asian</option>
+                </select>
+            </div>
+            <div class="preference-item">
+                <label for="servingSize">Feeding How Many People:</label>
+                <input type="number" id="servingSize" class="preference-input" min="1" max="5" value="1">
+            </div>
+        </div>
+
+        <div class="placeholder-container" id="placeholderContainer">
+            <img src="./images/3d-chef.jpg" alt="3D Chef" class="placeholder-image">
+        </div>
+
+        <div class="upload-area" id="uploadArea" style="display: none;">
             <div class="upload-icon">📸</div>
             <div class="upload-text">Click to upload or drag and drop</div>
-            <div class="upload-hint">Supports JPG, PNG, GIF, WebP</div>
+            <div class="upload-hint">Supports JPG, PNG, GIF, WebP images up to 5mb filesize.</div>
         </div>
 
         <input type="file" id="fileInput" accept="image/*">
@@ -25,15 +57,17 @@
         <div class="preview-container" id="previewContainer">
             <img id="previewImage" class="preview-image" alt="Preview">
             <div class="button-group">
-                <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
-                <button class="btn btn-primary" id="submitBtn">Generate Recipe</button>
+                <button class="btn btn-secondary" id="cancelBtn">Reset</button>
+                <button class="btn btn-primary" id="submitBtn">Get Recipes</button>
             </div>
         </div>
 
-        <div class="test-section" style="margin-top: 30px; padding-top: 30px; border-top: 1px solid #e0e0e0;">
-            <button class="btn btn-primary" id="testBtn" style="width: 100%;">Generate Random Recipe</button>
-            <button class="btn btn-secondary" id="clearCacheBtn" style="width: 100%; margin-top: 10px;">Clear Recipe Cache</button>
+
+        <div class="test-section" style="margin-top: 30px;">
+            <button class="btn btn-primary" id="testBtn" style="width: 100%;">Greet Chef 👋</button>
+            <button class="btn btn-secondary" id="clearCacheBtn" style="width: 100%; margin-top: 10px; display: none;">Clear Recipes</button>
         </div>
+
 
         <div class="response-container" id="responseContainer">
             <div class="response-title">Chef Bot Status:</div>
@@ -51,11 +85,37 @@
         <div class="complete-recipe-container" id="completeRecipeContainer" style="display: none; margin-top: 30px; padding: 25px; background: #fff9e6; border-radius: 12px; max-height: 500px; overflow-y: auto; box-shadow: none;">
             <div class="response-title" style="display: flex; justify-content: space-between; align-items: center;">
                 <span>Complete Recipe:</span>
-                <button id="closeRecipeBtn" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">×</button>
+                <button id="copyRecipeBtn" style="background: none; border: none; cursor: pointer; color: #666; padding: 5px;" title="Copy recipe">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                </button>
             </div>
             <div class="response-content" id="completeRecipeContent" style="margin-top: 15px; white-space: pre-wrap;"></div>
         </div>
     </div>
+
+    <!-- Spice Rack Menu -->
+    <nav class="spice-rack-menu">
+        <div class="spice-container">
+            <a href="#login" class="spice-shaker" style="--spice-color: #D2691E;">
+                <div class="shaker-body">
+                    <div class="shaker-label">Login</div>
+                </div>
+            </a>
+            <a href="#explore" class="spice-shaker" style="--spice-color: #CD853F;">
+                <div class="shaker-body">
+                    <div class="shaker-label">Explore</div>
+                </div>
+            </a>
+            <a href="#shop" class="spice-shaker" style="--spice-color: #8B4513;">
+                <div class="shaker-body">
+                    <div class="shaker-label">Shop</div>
+                </div>
+            </a>
+        </div>
+    </nav>
 
     <script src="scripts/main.js"></script>
 </body>

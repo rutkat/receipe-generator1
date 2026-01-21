@@ -13,11 +13,17 @@ const recipeSelect = document.getElementById('recipeSelect');
 const getRecipeBtn = document.getElementById('getRecipeBtn');
 const completeRecipeContainer = document.getElementById('completeRecipeContainer');
 const completeRecipeContent = document.getElementById('completeRecipeContent');
-const closeRecipeBtn = document.getElementById('closeRecipeBtn');
+const copyRecipeBtn = document.getElementById('copyRecipeBtn');
+const dietRestrictionSelect = document.getElementById('dietRestriction');
+const cuisineSelect = document.getElementById('cuisine');
+const servingSizeInput = document.getElementById('servingSize');
+const placeholderContainer = document.getElementById('placeholderContainer');
 
 let selectedFile = null;
 let extractedRecipes = [];
 let currentBase64Image = null;
+const LLM_MODEL = "qwen/qwen3-vl-8b";
+const SYSTEM_ROLE = "You're a highly rated michelin-star chef that knows how to cook to create recipe using food ingredients. Respond in JSON object format only without using emojis."
 
 // Cache management
 const CACHE_KEY_PREFIX = 'recipe_cache_';
@@ -49,6 +55,9 @@ function saveToCache(base64Image, responseData, recipes) {
 
         localStorage.setItem(cacheKey, JSON.stringify(cacheData));
         console.log('Recipe cached successfully');
+
+        // Show the Clear Recipes button
+        clearCacheBtn.style.display = 'block';
     } catch (error) {
         console.warn('Failed to cache recipe:', error);
     }
@@ -109,10 +118,26 @@ function clearAllCache() {
         const recipeCacheKeys = allKeys.filter(key => key.startsWith(CACHE_KEY_PREFIX));
         recipeCacheKeys.forEach(key => localStorage.removeItem(key));
         console.log(`Cleared ${recipeCacheKeys.length} cache entries`);
+
+        // Hide the Clear Recipes button after clearing
+        clearCacheBtn.style.display = 'none';
     } catch (error) {
         console.warn('Failed to clear cache:', error);
     }
 }
+
+// Function to switch from placeholder to upload area
+function switchToUploadArea() {
+    if (placeholderContainer.style.display !== 'none') {
+        placeholderContainer.style.display = 'none';
+        uploadArea.style.display = 'block';
+    }
+}
+
+// Event listeners for preference changes
+dietRestrictionSelect.addEventListener('change', switchToUploadArea);
+cuisineSelect.addEventListener('change', switchToUploadArea);
+servingSizeInput.addEventListener('input', switchToUploadArea);
 
 // Click to upload
 uploadArea.addEventListener('click', () => {
@@ -125,6 +150,12 @@ fileInput.addEventListener('change', (e) => {
     if (file) {
         const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
         if (validTypes.includes(file.type)) {
+            // Check file size (5MB limit)
+            const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+            if (file.size > maxSize) {
+                displayError('File size exceeds 5MB limit. Please upload a smaller image.');
+                return;
+            }
             handleFile(file);
         } else {
             displayError('Invalid file format. Please upload a JPG, PNG, GIF, or WebP image file.');
@@ -149,6 +180,12 @@ uploadArea.addEventListener('drop', (e) => {
     if (file) {
         const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
         if (validTypes.includes(file.type)) {
+            // Check file size (5MB limit)
+            const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+            if (file.size > maxSize) {
+                displayError('File size exceeds 5MB limit. Please upload a smaller image.');
+                return;
+            }
             handleFile(file);
         } else {
             displayError('Invalid file format. Please upload a JPG, PNG, GIF, or WebP image file.');
@@ -159,24 +196,63 @@ uploadArea.addEventListener('drop', (e) => {
 // Handle file selection
 function handleFile(file) {
     selectedFile = file;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        currentBase64Image = e.target.result;
-        previewImage.src = currentBase64Image;
-        uploadArea.style.display = 'none';
-        previewContainer.classList.add('active');
-        responseContainer.classList.remove('active');
-        recipeDropdownContainer.style.display = 'none';
-        completeRecipeContainer.style.display = 'none';
 
-        // Check if this image has been processed before (load from cache)
-        const cachedData = loadFromCache(currentBase64Image);
-        if (cachedData) {
-            // Display cached data
-            displayCachedData(cachedData);
-        }
-    };
+    // Check if file needs compression (larger than 2MB)
+    const compressionThreshold = 2 * 1024 * 1024; // 2MB in bytes
+
+    if (file.size > compressionThreshold) {
+        // Compress the image
+        compressImage(file, 0.65, (compressedBase64) => {
+            currentBase64Image = compressedBase64;
+            displayImagePreview();
+        });
+    } else {
+        // No compression needed, read file normally
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            currentBase64Image = e.target.result;
+            displayImagePreview();
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+// Display image preview
+function displayImagePreview() {
+    previewImage.src = currentBase64Image;
+    uploadArea.style.display = 'none';
+    previewContainer.classList.add('active');
+    responseContainer.classList.remove('active');
+    recipeDropdownContainer.style.display = 'none';
+    completeRecipeContainer.style.display = 'none';
+
+    // Check if this image has been processed before (load from cache)
+    const cachedData = loadFromCache(currentBase64Image);
+    if (cachedData) {
+        // Display cached data
+        displayCachedData(cachedData);
+    }
+}
+
+// Compress image using canvas
+function compressImage(file, quality, callback) {
+    const reader = new FileReader();
     reader.readAsDataURL(file);
+    reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+
+            // Compress to JPG format with specified quality
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+            callback(compressedDataUrl);
+        };
+    };
 }
 
 // Cancel button
@@ -187,20 +263,20 @@ cancelBtn.addEventListener('click', () => {
 // Test button
 testBtn.addEventListener('click', async () => {
     testBtn.disabled = true;
-    testBtn.innerHTML = '<span class="loading"></span>Testing...';
+    testBtn.innerHTML = '<span class="loading"></span>Calling Chef...';
     responseContainer.classList.remove('active');
     responseContainer.classList.remove('error-message');
 
     const testPayload = {
-        model: "qwen/qwen3-vl-8b",
+        model: LLM_MODEL,
         messages: [
             {
                 role: "system",
-                content: "You're a chef and know how to create any recipe from food ingredients."
+                content: SYSTEM_ROLE
             },
             {
                 role: "user",
-                content: "I want a recipe"
+                content: "Hello Chef Bot!"
             }
         ],
         temperature: 0.7,
@@ -208,26 +284,58 @@ testBtn.addEventListener('click', async () => {
         stream: false
     };
 
+    let success = false;
+
     try {
+        // Create timeout controller
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 180000); // 180 second timeout
+
         const response = await fetch('/api/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(testPayload)
+            body: JSON.stringify(testPayload),
+            signal: controller.signal
         });
 
+        clearTimeout(timeoutId);
+
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error(`Sorry,an HTTP error occured! ${response.status}`);
         }
 
         const data = await response.json();
-        displayResponse(data);
+
+        // For greeting response, display only the value from the "greeting" key
+        const content = data.choices?.[0]?.message?.content || JSON.stringify(data, null, 2);
+        let greetingText = content;
+
+        try {
+            // Try to parse the content as JSON and extract the greeting value
+            const parsedData = JSON.parse(content);
+            if (parsedData.greeting) {
+                greetingText = parsedData.greeting;
+            }
+        } catch (e) {
+            // If not JSON or no greeting key, use the content as-is
+        }
+
+        responseContainer.classList.add('active');
+        responseContent.textContent = greetingText;
+        success = true;
+
+        // Hide the button after successful API call
+        testBtn.style.display = 'none';
     } catch (error) {
         displayError(error.message);
     } finally {
-        testBtn.disabled = false;
-        testBtn.innerHTML = 'Test API Connection';
+        // Only reset button state if there was an error
+        if (!success) {
+            testBtn.disabled = false;
+            testBtn.innerHTML = 'Greet Chef Bot';
+        }
     }
 });
 
@@ -250,12 +358,27 @@ submitBtn.addEventListener('click', async () => {
         reader.onload = async () => {
             const base64Image = reader.result;
 
+            // Get user preferences
+            const dietRestriction = dietRestrictionSelect.value;
+            const cuisine = cuisineSelect.value;
+            const servingSize = servingSizeInput.value;
+
+            // Build preference text for prompt
+            let preferenceText = "";
+            if (dietRestriction !== 'none') {
+                preferenceText += ` The recipe must be ${dietRestriction}.`;
+            }
+            if (cuisine !== 'any') {
+                preferenceText += ` Focus on ${cuisine} cuisine.`;
+            }
+            preferenceText += ` The recipe should serve ${servingSize} people.`;
+
             const payload = {
-                model: "qwen/qwen3-vl-8b",
+                model: LLM_MODEL,
                 messages: [
                     {
                         role: "system",
-                        content: "You're a chef and know how to create any recipe using food ingredients. Answer in short concise phrases without emojis."
+                        content: SYSTEM_ROLE
                     },
                     {
                         role: "user",
@@ -268,7 +391,16 @@ submitBtn.addEventListener('click', async () => {
                             },
                             {
                                 type: "text",
-                                text: "What ingredients are shown in the image? Create a separate list of possible recipes using the corresponding ingredients."
+                                text: `Analyze the image and identify all visible ingredients including count of ingredient found in the image. Do not add ingredients if they are not detected in the image. Then suggest recipes that can be made using those ingredients${preferenceText}
+
+If explicit or harmful imagery is detected, set the harmful key to true.
+IMPORTANT: You must respond with a valid JSON object ONLY, with no additional text. The JSON must have this exact structure:
+{
+  "harmful": false,
+  "ingredient_count": integer,                              
+  "ingredients": ["ingredient 1", "ingredient 2", ...],
+  "recipes": ["recipe name 1", "recipe name 2", ...]
+}`
                             }
                         ]
                     }
@@ -279,13 +411,20 @@ submitBtn.addEventListener('click', async () => {
             };
 
             try {
+                // Create timeout controller
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 180000); // 180 second timeout
+
                 const response = await fetch('/api/chat/completions', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(payload),
+                    signal: controller.signal
                 });
+
+                clearTimeout(timeoutId);
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -297,7 +436,7 @@ submitBtn.addEventListener('click', async () => {
                 displayError(error.message);
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = 'Generate Recipe';
+                submitBtn.innerHTML = 'Get Recipes';
             }
         };
         reader.readAsDataURL(selectedFile);
@@ -305,7 +444,7 @@ submitBtn.addEventListener('click', async () => {
     } catch (error) {
         displayError(error.message);
         submitBtn.disabled = false;
-        submitBtn.innerHTML = 'Generate Recipe';
+        submitBtn.innerHTML = 'Get Recipes';
     }
 });
 
@@ -315,87 +454,133 @@ function displayResponse(data) {
 
     // Extract the content from the response
     const content = data.choices?.[0]?.message?.content || JSON.stringify(data, null, 2);
-    responseContent.textContent = content;
 
-    // Extract recipes from the response
-    extractRecipes(content);
+    try {
+        // Parse the JSON response
+        const parsedData = parseJSONResponse(content);
 
-    // Save to cache
-    if (currentBase64Image && extractedRecipes.length > 0) {
-        saveToCache(currentBase64Image, data, extractedRecipes);
+        // Check for harmful content or insufficient ingredients
+        if (parsedData.harmful === true || (parsedData.ingredient_count !== undefined && parsedData.ingredient_count < 3)) {
+            // Display error message and don't show recipe dropdown
+            responseContent.innerHTML = `<div style="color: #d32f2f; font-size: 16px; padding: 15px;">Oops, insufficient ingredients detected. Try a different image.</div>`;
+            recipeDropdownContainer.style.display = 'none';
+            completeRecipeContainer.style.display = 'none';
+            return;
+        }
+
+        // Format the response to show ingredients and recipes
+        const formattedContent = formatJSONResponse(parsedData);
+        responseContent.innerHTML = formattedContent;
+
+        // Extract recipes from the parsed data
+        extractRecipesFromJSON(parsedData);
+
+        // Save to cache
+        if (currentBase64Image && extractedRecipes.length > 0) {
+            saveToCache(currentBase64Image, data, extractedRecipes);
+        }
+    } catch (error) {
+        // If JSON parsing fails, display the raw content with error
+        responseContent.innerHTML = `<div style="color: #d32f2f;">Error parsing response: ${error.message}</div><div style="margin-top: 10px;">Raw response:</div><pre>${escapeHtml(content)}</pre>`;
+        // Hide recipe dropdown on error
+        recipeDropdownContainer.style.display = 'none';
+        completeRecipeContainer.style.display = 'none';
     }
+}
+
+// Parse JSON response from LLM
+function parseJSONResponse(content) {
+    // Try to extract JSON from the response if there's additional text
+    let jsonStr = content.trim();
+
+    // Look for JSON object boundaries
+    const firstBrace = jsonStr.indexOf('{');
+    const lastBrace = jsonStr.lastIndexOf('}');
+
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+    }
+
+    // Parse the JSON
+    const parsed = JSON.parse(jsonStr);
+
+    // Validate the structure
+    if (!parsed.ingredients || !Array.isArray(parsed.ingredients)) {
+        throw new Error('Response must contain an "ingredients" array');
+    }
+    if (!parsed.recipes || !Array.isArray(parsed.recipes)) {
+        throw new Error('Response must contain a "recipes" array');
+    }
+
+    return parsed;
+}
+
+// Format the JSON response for display
+function formatJSONResponse(data) {
+    let html = '';
+
+    // Format ingredients section
+    if (data.ingredients && data.ingredients.length > 0) {
+        html += '<div style="margin-top: 15px; margin-bottom: 10px; font-weight: 600; color: #333; font-size: 16px;">Identified Ingredients:</div>';
+        data.ingredients.forEach((ingredient, index) => {
+            html += `<div style="margin-left: 20px; margin-bottom: 5px; color: #555;">${index + 1}. ${escapeHtml(ingredient)}</div>`;
+        });
+    }
+
+    // Format recipes section
+    if (data.recipes && data.recipes.length > 0) {
+        html += '<div style="margin-top: 20px; margin-bottom: 10px; font-weight: 600; color: #333; font-size: 16px;">Available Recipes:</div>';
+        data.recipes.forEach((recipe, index) => {
+            html += `<div style="margin-left: 20px; margin-bottom: 5px; color: #555;">${index + 1}. ${escapeHtml(recipe)}</div>`;
+        });
+    }
+
+    return html;
+}
+
+// Extract recipes from parsed JSON data
+function extractRecipesFromJSON(data) {
+    extractedRecipes = data.recipes || [];
+    populateRecipeDropdown();
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function displayCachedData(cachedData) {
     responseContainer.classList.add('active');
     responseContainer.classList.remove('error-message');
 
-    // Display the cached response content
+    // Display the cached response content with formatting
     const content = cachedData.responseData.choices?.[0]?.message?.content || JSON.stringify(cachedData.responseData, null, 2);
-    responseContent.innerHTML = `<em style="color: #4CAF50;">✓ Loaded from cache (${new Date(cachedData.timestamp).toLocaleString()})</em><br><br>${content}`;
 
-    // Restore extracted recipes
-    extractedRecipes = cachedData.recipes;
+    try {
+        // Try to parse as JSON and format
+        const parsedData = parseJSONResponse(content);
 
-    // Populate dropdown if recipes found
-    if (extractedRecipes.length > 0) {
+        // Check for harmful content or insufficient ingredients
+        if (parsedData.harmful === true || (parsedData.ingredient_count !== undefined && parsedData.ingredient_count < 5)) {
+            // Display error message and don't show recipe dropdown
+            responseContent.innerHTML = `<div style="color: #d32f2f; font-size: 16px; padding: 15px;">Oops, insufficient ingredients detected. Try a different image.</div>`;
+            recipeDropdownContainer.style.display = 'none';
+            completeRecipeContainer.style.display = 'none';
+            return;
+        }
+
+        const formattedContent = formatJSONResponse(parsedData);
+        responseContent.innerHTML = `<em style="color: #4CAF50;">✓ Loaded from cache (${new Date(cachedData.timestamp).toLocaleString()})</em><br><br>${formattedContent}`;
+
+        // Restore extracted recipes
+        extractedRecipes = cachedData.recipes || [];
         populateRecipeDropdown();
-    }
-}
-
-function extractRecipes(content) {
-    // Look specifically for items after "Possible recipes:"
-    const lines = content.split('\n');
-    extractedRecipes = [];
-
-    // Find the line containing "Possible recipes:"
-    let recipesSectionIndex = -1;
-    for (let i = 0; i < lines.length; i++) {
-        if (lines[i].toLowerCase().includes('possible recipes:')) {
-            recipesSectionIndex = i;
-            break;
-        }
-    }
-
-    // If "Possible recipes:" not found, don't extract anything
-    if (recipesSectionIndex === -1) {
-        return;
-    }
-
-    // Extract items after "Possible recipes:" line
-    // Look for numbered lists, bullet points, or lines that look like recipe names
-    for (let i = recipesSectionIndex + 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-
-        // Stop if we hit an empty line or a section header
-        if (!line ||
-            line.toLowerCase().includes('ingredients') ||
-            line.toLowerCase().includes('instructions') ||
-            line.toLowerCase().includes('directions') ||
-            line.toLowerCase().includes('steps') ||
-            line.match(/^[A-Z][a-z]+:/)) {  // Lines like "Ingredients:", "Instructions:"
-            break;
-        }
-
-        // Try to match numbered list (1., 2., 3., etc.) or bullet points
-        const match = line.match(/^(\d+[\.\)]+|[-•])\s*(.+)$/);
-
-        if (match && match[2]) {
-            let recipeName = match[2].trim()
-                .replace(/^[:\-\s]+/, '')  // Remove leading colons, dashes, spaces
-                .replace(/\s+[:\-\s]*$/, '');  // Remove trailing colons, dashes, spaces
-
-            // Only add if it doesn't contain "ingredients" and has reasonable length
-            if (recipeName.length > 2 &&
-                recipeName.length < 100 &&
-                !recipeName.toLowerCase().includes('ingredients')) {
-                extractedRecipes.push(recipeName);
-            }
-        }
-    }
-
-    // Populate dropdown if recipes found
-    if (extractedRecipes.length > 0) {
+    } catch (error) {
+        // If JSON parsing fails, display raw content
+        responseContent.innerHTML = `<em style="color: #4CAF50;">✓ Loaded from cache (${new Date(cachedData.timestamp).toLocaleString()})</em><br><br><pre>${escapeHtml(content)}</pre>`;
+        extractedRecipes = cachedData.recipes || [];
         populateRecipeDropdown();
     }
 }
@@ -440,8 +625,17 @@ getRecipeBtn.addEventListener('click', async () => {
     getRecipeBtn.innerHTML = '<span class="loading"></span>Getting Recipe...';
     completeRecipeContainer.style.display = 'none';
 
+    // Get user preferences
+    const cuisine = cuisineSelect.value;
+    const servingSize = servingSizeInput.value;
+    let cuisineText = '';
+    if (cuisine !== 'any') {
+        cuisineText = ` This should be a ${cuisine} recipe.`;
+    }
+    const servingText = ` The recipe should serve ${servingSize} people.`;
+
     const recipePayload = {
-        model: "qwen/qwen3-vl-8b",
+        model: LLM_MODEL,
         messages: [
             {
                 role: "system",
@@ -458,7 +652,7 @@ getRecipeBtn.addEventListener('click', async () => {
                     },
                     {
                         type: "text",
-                        text: `Provide a complete, detailed recipe for ${selectedRecipe}. Include all ingredients with quantities and step-by-step cooking instructions. Format it clearly with sections for ingredients and instructions.`
+                        text: `Provide a complete, detailed recipe for ${selectedRecipe}.${cuisineText}${servingText} Include all ingredients with quantities and step-by-step cooking instructions. Format it clearly in plain text with sections for ingredients and instructions.`
                     }
                 ]
             }
@@ -469,13 +663,20 @@ getRecipeBtn.addEventListener('click', async () => {
     };
 
     try {
+        // Create timeout controller
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 180000); // 180 second timeout
+
         const response = await fetch('/api/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(recipePayload)
+            body: JSON.stringify(recipePayload),
+            signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -500,9 +701,30 @@ function displayCompleteRecipe(data) {
     completeRecipeContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-// Close recipe button
-closeRecipeBtn.addEventListener('click', () => {
-    completeRecipeContainer.style.display = 'none';
+// Copy recipe button
+copyRecipeBtn.addEventListener('click', () => {
+    const recipeText = completeRecipeContent.textContent;
+
+    // Use the Clipboard API to copy the text
+    navigator.clipboard.writeText(recipeText).then(() => {
+        // Show visual feedback
+        const originalHTML = copyRecipeBtn.innerHTML;
+        copyRecipeBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+        `;
+        copyRecipeBtn.style.color = '#4CAF50';
+
+        // Reset after 2 seconds
+        setTimeout(() => {
+            copyRecipeBtn.innerHTML = originalHTML;
+            copyRecipeBtn.style.color = '#666';
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy recipe:', err);
+        alert('Failed to copy recipe. Please try again.');
+    });
 });
 
 // Clear cache button
@@ -526,3 +748,21 @@ function resetForm() {
     recipeDropdownContainer.style.display = 'none';
     completeRecipeContainer.style.display = 'none';
 }
+
+// Initialize: Check if there are cached recipes on page load
+function initializeClearButton() {
+    try {
+        const allKeys = Object.keys(localStorage);
+        const recipeCacheKeys = allKeys.filter(key => key.startsWith(CACHE_KEY_PREFIX));
+
+        // Show the Clear Recipes button if there are cached recipes
+        if (recipeCacheKeys.length > 0) {
+            clearCacheBtn.style.display = 'block';
+        }
+    } catch (error) {
+        console.warn('Failed to check cache on initialization:', error);
+    }
+}
+
+// Run initialization when page loads
+initializeClearButton();

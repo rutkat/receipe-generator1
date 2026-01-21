@@ -1,6 +1,6 @@
 # Recipe Generator 🍕🍔🍝
 
-An AI-powered recipe generator that uses computer vision to identify food ingredients from images and generate creative recipe suggestions. Built with Node.js, Express, and Ollama's open-source Qwen3-VL-8B multimodal AI model.
+An AI-powered recipe generator that uses computer vision to identify food ingredients from images and generate creative recipe suggestions. Built with Node.js, Fastify, and Ollama's open-source Qwen3-VL-8B multimodal AI model.
 
 ![Recipe Generator Screenshot](screenshot1.jpg)
 ![Recipe Generator Screenshot](screenshot2.jpg)
@@ -23,7 +23,7 @@ An AI-powered recipe generator that uses computer vision to identify food ingred
 ## Tech Stack
 
 - **Frontend**: Vanilla JavaScript, HTML5, CSS3
-- **Backend**: Node.js, Express
+- **Backend**: Node.js, Fastify
 - **AI Model**: Ollama Qwen3-VL-8B (Vision-language model)
 - **Monitoring**: Prometheus metrics via prom-client
 - **API Proxy**: Local proxy to Ollama API
@@ -80,8 +80,9 @@ npm install
 ```
 
 This will install:
-- `express` - Web server framework
-- `cors` - Cross-origin resource sharing
+- `fastify` - High-performance web server framework
+- `@fastify/cors` - Cross-origin resource sharing
+- `@fastify/static` - Static file serving
 - `node-fetch` - HTTP client for API requests
 - `winston` - Logging library
 - `prom-client` - Prometheus metrics collection
@@ -182,7 +183,7 @@ Access metrics at `http://localhost:3000/metrics`:
 
 ```
 recipe-generator/
-├── server.js           # Express server with API proxy and metrics
+├── server.js           # Fastify server with API proxy and metrics
 ├── index.html          # Frontend application
 ├── package.json        # Node.js dependencies
 ├── README.md          # This file

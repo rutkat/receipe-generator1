@@ -19,9 +19,9 @@ body::before {
     left: 0;
     right: 0;
     bottom: 0;
+    background-color: #FFF;
     background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><text x="10" y="30" font-size="24">🍕</text><text x="60" y="30" font-size="24">🍔</text><text x="10" y="70" font-size="24">🍝</text><text x="60" y="70" font-size="24">🍜</text></svg>');
     background-repeat: repeat;
-    opacity: 0.7;
     z-index: -1;
     animation: scrollBackground 20s linear infinite;
 }
@@ -41,6 +41,7 @@ body::before {
     padding: 40px;
     max-width: 800px;
     width: 100%;
+    border: 1px solid pink;
 }
 
 h1 {
@@ -55,6 +56,87 @@ h1 {
     font-size: 14px;
 }
 
+.preferences-section {
+    margin-bottom: 25px;
+    padding: 20px;
+    background: #FFE4B5 url('../images/souse-chef.png') no-repeat right center;
+    background-size: contain;
+    border-radius: 12px;
+    position: relative;
+}
+
+.preference-item {
+    margin-bottom: 15px;
+}
+
+.preference-item:last-child {
+    margin-bottom: 0;
+}
+.preference-item p {
+    line-height: 2em;
+}
+.preference-item label {
+    display: block;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.preference-dropdown {
+    width: 60%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.preference-dropdown:hover {
+    border-color: #667eea;
+}
+
+.preference-dropdown:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.preference-input {
+    width: 60%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    background: white;
+    transition: all 0.3s ease;
+}
+
+.preference-input:hover {
+    border-color: #667eea;
+}
+
+.preference-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.placeholder-container {
+    margin-bottom: 25px;
+    text-align: center;
+    transition: all 0.5s ease;
+}
+
+.placeholder-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
 .upload-area {
     border: 3px dashed #667eea;
     border-radius: 12px;
@@ -62,12 +144,12 @@ h1 {
     text-align: center;
     cursor: pointer;
     transition: all 0.3s ease;
-    background: #f8f9ff;
+    background: #FFE4B5;
 }
 
 .upload-area:hover {
     border-color: #764ba2;
-    background: #f0f2ff;
+    background: #FFF;
 }
 
 .upload-area.dragover {
@@ -240,4 +322,112 @@ h1 {
 .error-message {
     background: #ffe6e6;
     color: #cc0000;
+}
+
+/* Spice Rack Menu Styles */
+.spice-rack-menu {
+    position: fixed;
+    right: 20px;
+    top: 20px;
+    z-index: 1000;
+}
+
+.spice-container {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    background: white;
+    padding: 15px 10px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    border: 2px solid #e0e0e0;
+    width: 74px;
+}
+
+.spice-shaker {
+    display: block;
+    text-decoration: none;
+    transition: transform 0.3s ease;
+}
+
+.spice-shaker:hover {
+    /*transform: translateX(-5px);*/
+    animation: shake 0.5s ease-in-out infinite;
+}
+@keyframes shake {
+    0% { transform: translateY(0) }
+    25% { transform: translateY(3px) }
+    50% { transform: translateY(-3px) }
+    75% { transform: translateY(3px) }
+    100% { transform: translateY(0) }
+}
+
+.shaker-body {
+    width: 52px;
+    height: 72px;
+    background: var(--spice-color);
+    border-radius: 8px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.spice-shaker:hover .shaker-body {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.shaker-body::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 10px;
+    background: var(--spice-color);
+    border-radius: 3px 3px 0 0;
+    opacity: 0.8;
+}
+
+.shaker-label {
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    letter-spacing: 0.5px;
+    margin-top: 8px;
+}
+
+/* Media query for mobile devices */
+@media (max-width: 768px) {
+    .spice-container {
+        width: 50px;
+        padding: 10px 8px;
+        gap: 14px;
+    }
+
+    .shaker-body {
+        width: 34px;
+        height: 40px;
+    }
+
+    .shaker-body::before {
+        width: 20px;
+        height: 7px;
+        top: -6px;
+    }
+
+    .shaker-label {
+        font-size: 9px;
+    }
+
+    .spice-rack-menu {
+        right: 10px;
+        top: 10px;
+    }
 }

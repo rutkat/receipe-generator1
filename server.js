@@ -1,9 +1,10 @@
-const express = require('express');
-const cors = require('cors');
+const fastify = require('fastify')({ logger: false });
 const path = require('path');
 const fetch = require('node-fetch');
 const winston = require('winston');
 const promClient = require('prom-client');
+const fastifyCors = require('@fastify/cors');
+const fastifyStatic = require('@fastify/static');
 
 // Configure Winston logger with warning level
 const logger = winston.createLogger({
@@ -54,94 +55,100 @@ const apiProxyErrorCounter = new promClient.Counter({
     registers: [register]
 });
 
-const app = express();
 const PORT = 3000;
 const API_URL = 'http://127.0.0.1:1234';
 
-// Enable CORS for all routes
-app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+// Register plugins
+async function start() {
+    // Enable CORS for all routes
+    await fastify.register(fastifyCors, {
+        origin: '*',
+        methods: ['GET', 'POST', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization']
+    });
 
-// Parse JSON bodies
-app.use(express.json());
+    // Register static file serving
+    await fastify.register(fastifyStatic, {
+        root: __dirname,
+        prefix: '/'
+    });
 
-// Middleware to track HTTP requests
-app.use((req, res, next) => {
-    const start = Date.now();
+    // Add hooks for metrics tracking
+    fastify.addHook('onRequest', async (request, reply) => {
+        request.metricsStart = Date.now();
+    });
 
-    res.on('finish', () => {
-        const duration = (Date.now() - start) / 1000;
-        const route = req.route ? req.route.path : req.path;
+    fastify.addHook('onResponse', async (request, reply) => {
+        const duration = (Date.now() - request.metricsStart) / 1000;
+        const route = request.routerPath || request.raw.url;
 
         httpRequestCounter.inc({
-            method: req.method,
+            method: request.method,
             route: route,
-            status_code: res.statusCode
+            status_code: reply.statusCode
         });
 
         httpRequestDuration.observe({
-            method: req.method,
+            method: request.method,
             route: route,
-            status_code: res.statusCode
+            status_code: reply.statusCode
         }, duration);
     });
 
-    next();
-});
+    // Serve index.html at root route
+    fastify.get('/', async (request, reply) => {
+        return reply.sendFile('index.html');
+    });
 
-// Serve static files from current directory
-app.use(express.static(__dirname));
+    // Proxy route to forward requests to the API server
+    fastify.post('/api/chat/completions', async (request, reply) => {
+        try {
+            const response = await fetch(`${API_URL}/v1/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(request.body)
+            });
 
-// Serve index.html at root route
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
+            const data = await response.json();
 
-// Proxy route to forward requests to the API server
-app.post('/api/chat/completions', async (req, res) => {
-    try {
-        const response = await fetch(`${API_URL}/v1/chat/completions`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(req.body)
-        });
+            if (!response.ok) {
+                apiProxyCounter.inc({ status: 'error' });
+                return reply.status(response.status).send(data);
+            }
 
-        const data = await response.json();
-
-        if (!response.ok) {
+            apiProxyCounter.inc({ status: 'success' });
+            return reply.send(data);
+        } catch (error) {
             apiProxyCounter.inc({ status: 'error' });
-            return res.status(response.status).json(data);
+            apiProxyErrorCounter.inc();
+            logger.warn('Proxy error:', error);
+            return reply.status(500).send({ error: 'Failed to connect to API server', message: error.message });
         }
+    });
 
-        apiProxyCounter.inc({ status: 'success' });
-        res.json(data);
-    } catch (error) {
-        apiProxyCounter.inc({ status: 'error' });
-        apiProxyErrorCounter.inc();
-        logger.warning('Proxy error:', error);
-        res.status(500).json({ error: 'Failed to connect to API server', message: error.message });
-    }
-});
+    // Metrics endpoint for Prometheus scraping
+    fastify.get('/metrics', async (request, reply) => {
+        try {
+            reply.header('Content-Type', register.contentType);
+            return await register.metrics();
+        } catch (err) {
+            return reply.status(500).send(err);
+        }
+    });
 
-// Metrics endpoint for Prometheus scraping
-app.get('/metrics', async (req, res) => {
+    // Start server
     try {
-        res.set('Content-Type', register.contentType);
-        res.end(await register.metrics());
+        await fastify.listen({ port: PORT });
+        console.log(`Recipe Generator server running at http://localhost:${PORT}`);
+        console.log(`Metrics available at http://localhost:${PORT}/metrics`);
+        console.log(`Proxying API requests to ${API_URL}`);
+        console.log('Press Ctrl+C to stop the server');
     } catch (err) {
-        res.status(500).end(err);
+        fastify.log.error(err);
+        process.exit(1);
     }
-});
+}
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`Recipe Generator server running at http://localhost:${PORT}`);
-    console.log(`Metrics available at http://localhost:${PORT}/metrics`);
-    console.log(`Proxying API requests to ${API_URL}`);
-    console.log('Press Ctrl+C to stop the server');
-});
+start();
